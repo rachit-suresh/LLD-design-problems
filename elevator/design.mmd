@@ -39,7 +39,6 @@ classDiagram
 
     class ISensor {
         <<interface>>
-        -List~IObserver~ observers
         +registerObserver(o: IObserver) void
         +removeObserver(o: IObserver) void
         #notifyObservers(event: SensorEvent) void
@@ -52,12 +51,19 @@ classDiagram
     }
 
     class PositionSensor {
-        -double currentAltitudeMeters
+        -int currentFloor
         +detectFloorProximity() void
+    }
+
+    class FloorDisplay {
+        -int currentFloor
+        -Direction currentDirection
+        +onSensorTriggered(event: SensorEvent) void
     }
 
     ISensor <|-- WeightSensor
     ISensor <|-- PositionSensor
+    IObserver <|-- FloorDisplay
 
     %% Dispatcher & Trigger Interfaces
     class Button {
@@ -67,12 +73,12 @@ classDiagram
 
     class LiftAssignmentStrategy {
         <<interface>>
-        +assignOptimalCar(controllers: List~ElevatorController~, reqFloor: int, reqDir: Direction) ElevatorController
+        +assignOptimalCar(controllers: List, reqFloor: int, reqDir: Direction) ElevatorController
     }
 
     class MovementAlgorithm {
         <<interface>>
-        +calculateNextStop(currentFloor: int, currentDir: Direction, upStops: boolean[], downStops: boolean[]) int
+        +calculateNextStop(currentFloor: int, currentDir: Direction, upStops: List, downStops: List) int
     }
 
     class ExternalDispatcher {
@@ -102,23 +108,38 @@ classDiagram
     Button <|-- HallwayButton
     Button <|-- CarButton
 
+    %% Physical Model
+    class ElevatorCar {
+        -int id
+        -int currentFloor
+        -ElevatorState state
+        -double capacityKg
+        -double currentLoadKg
+        +gotoFloor(floor: int) void
+        +stop() void
+        +openDoors() void
+        +closeDoors() void
+    }
+
     %% Core Logic
     class ElevatorSystem {
-        -List~ElevatorController~ controllers
+        -List controllers
         -LiftAssignmentStrategy assignmentStrategy
         +handleExternalRequest(floor: int, dir: Direction) void
+        +tick() void
     }
 
     class ElevatorController {
         -int id
-        -int currentFloor
-        -ElevatorState state
+        -ElevatorCar car
         -Direction direction
-        -boolean[] upStops
-        -boolean[] downStops
+        -int maxFloors
+        -List upStops
+        -List downStops
         -MovementAlgorithm algorithm
         +acceptNewRequest(floor: int, dir: Direction) void
         +onSensorTriggered(event: SensorEvent) void
+        +tick() void
         -handleFloorArrival(floor: int) void
         -handleWeightOverload(weight: double) void
         -evaluateNextState() void
@@ -126,20 +147,20 @@ classDiagram
     }
 
     %% Relationships
-    IObserver <|-- ElevatorController : "Implements"
-    ISensor o-- IObserver : "Notifies via Interrupts"
+    IObserver <|-- ElevatorController : Implements
+    ISensor o-- IObserver : Notifies via Interrupts
     
-    ElevatorController *-- WeightSensor : "Composes"
-    ElevatorController *-- PositionSensor : "Composes"
+    ElevatorCar *-- WeightSensor : Composes
+    ElevatorCar *-- PositionSensor : Composes
 
-    HallwayButton --> ExternalDispatcher : "Injected"
-    CarButton --> InternalDispatcher : "Injected"
+    HallwayButton --> ExternalDispatcher : Injected
+    CarButton --> InternalDispatcher : Injected
     
-    ExternalDispatcher --> ElevatorSystem : "Routes"
-    InternalDispatcher --> ElevatorController : "Routes"
+    ExternalDispatcher --> ElevatorSystem : Routes
+    InternalDispatcher --> ElevatorController : Routes
     
-    ElevatorSystem "1" *-- "*" ElevatorController : "Fleet Management"
-    ElevatorSystem --> LiftAssignmentStrategy : "Delegates"
+    ElevatorSystem "1" *-- "*" ElevatorController : Fleet Management
+    ElevatorSystem --> LiftAssignmentStrategy : Delegates
     
-    ElevatorController --> MovementAlgorithm : "Delegates"
-    ElevatorController --> ElevatorState : "Maintains"
+    ElevatorController --> ElevatorCar : Controls
+    ElevatorController --> MovementAlgorithm : Delegates

@@ -1,3 +1,5 @@
+package org.example;
+
 public interface IRateLimitingStrategy {
-    boolean isAllowed();
+    boolean isAllowed(String clientId);
 }

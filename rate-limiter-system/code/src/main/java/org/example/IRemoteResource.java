@@ -1,6 +1,7 @@
-import java.net.http.HttpRequest;
+package org.example;
+
 import java.net.http.HttpResponse;
 
 public interface IRemoteResource {
-    HttpResponse sendRequest(RequestEntity requestEntity);
+    HttpResponse<String> sendRequest(RequestEntity requestEntity);
 }
